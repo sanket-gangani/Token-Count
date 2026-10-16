@@ -127,13 +127,18 @@ export function filtersToQuery(f: Filters): string {
   return s ? "?" + s : "";
 }
 
+/** Built with VITE_DEMO=1 for the hosted preview: fictional data, no local server. */
+export const DEMO = import.meta.env.VITE_DEMO === "1";
+
 export async function fetchSummary(f: Filters): Promise<SummaryResponse> {
+  if (DEMO) return (await import("./demo")).demoSummary(f);
   const r = await fetch("/api/summary" + filtersToQuery(f));
   if (!r.ok) throw new Error(`summary ${r.status}`);
   return r.json();
 }
 
 export async function saveConfig(patch: Partial<UserConfig>): Promise<UserConfig> {
+  if (DEMO) return (await import("./demo")).demoSaveConfig(patch);
   const r = await fetch("/api/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
   if (!r.ok) throw new Error(`config ${r.status}`);
   return r.json();
@@ -154,28 +159,34 @@ export function useLive(): LiveState {
   const [state, setState] = useState<LiveState>({ connected: false, snapshot: null, tick: 0, lastEventAt: null, lastDelta: 0 });
   const esRef = useRef<EventSource | null>(null);
   useEffect(() => {
+    const on = {
+      hello: (snap: LiveSnapshot) => setState((s) => ({ ...s, connected: true, snapshot: snap })),
+      usage: (d: LiveSnapshot & { at: number }) =>
+        setState((s) => ({
+          connected: true,
+          snapshot: d,
+          tick: s.tick + 1,
+          lastEventAt: d.at,
+          lastDelta: s.snapshot ? Math.max(0, d.totals.total - s.snapshot.totals.total) : 0,
+        })),
+      config: (d: LiveSnapshot) => setState((s) => ({ ...s, snapshot: d, tick: s.tick + 1, lastDelta: 0 })),
+    };
+    if (DEMO) {
+      let off: (() => void) | null = null;
+      let gone = false;
+      import("./demo").then((m) => {
+        if (!gone) off = m.subscribeDemo((type, d) => on[type](d as LiveSnapshot & { at: number }));
+      });
+      return () => {
+        gone = true;
+        off?.();
+      };
+    }
     const es = new EventSource("/api/events");
     esRef.current = es;
     es.onopen = () => setState((s) => ({ ...s, connected: true }));
     es.onerror = () => setState((s) => ({ ...s, connected: false }));
-    es.addEventListener("hello", (e) => {
-      const snap = JSON.parse((e as MessageEvent).data) as LiveSnapshot;
-      setState((s) => ({ ...s, connected: true, snapshot: snap }));
-    });
-    es.addEventListener("usage", (e) => {
-      const d = JSON.parse((e as MessageEvent).data) as LiveSnapshot & { at: number };
-      setState((s) => ({
-        connected: true,
-        snapshot: d,
-        tick: s.tick + 1,
-        lastEventAt: d.at,
-        lastDelta: s.snapshot ? Math.max(0, d.totals.total - s.snapshot.totals.total) : 0,
-      }));
-    });
-    es.addEventListener("config", (e) => {
-      const d = JSON.parse((e as MessageEvent).data) as LiveSnapshot & { config: UserConfig };
-      setState((s) => ({ ...s, snapshot: d, tick: s.tick + 1, lastDelta: 0 }));
-    });
+    for (const type of ["hello", "usage", "config"] as const) es.addEventListener(type, (e) => on[type](JSON.parse((e as MessageEvent).data)));
     return () => es.close();
   }, []);
   return state;

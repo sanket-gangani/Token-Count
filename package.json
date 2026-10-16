@@ -5,6 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "build": "tsc -p tsconfig.json && vite build web",
+    "build:demo": "VITE_DEMO=1 vite build web",
     "dev": "vite build web --logLevel warn && tsx src/cli.ts",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json",

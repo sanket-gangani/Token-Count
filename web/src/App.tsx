@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchSummary, useLive, type Filters, type PeriodCard, type SummaryResponse } from "./api";
+import { DEMO, fetchSummary, useLive, type Filters, type PeriodCard, type SummaryResponse } from "./api";
 import { RollingDigits, useTween } from "./components/RollingNumber";
 import { CountUp } from "./components/Motion";
 import { Lake } from "./components/Lake";
@@ -230,8 +230,9 @@ export function App() {
 
   const statusText = !live.connected ? "offline · reconnecting" : burning ? `burning · ${ago(now - (lastTs ?? now))}` : lastTs ? `idle · last burn ${ago(now - lastTs)}` : "watching for usage";
   const rangeLabel = preset === "all" ? "all time" : preset === "custom" ? "custom range" : `last ${preset.replace("d", " days")}`;
+  const who = DEMO ? "this demo team has" : "you have";
   const since =
-    preset === "all" && !filtered && s?.first ? `Since ${longDate(s.first)}, you have burned` : preset === "all" ? "In this selection, you have burned" : `In the ${rangeLabel}, you have burned`;
+    preset === "all" && !filtered && s?.first ? `Since ${longDate(s.first)}, ${who} burned` : preset === "all" ? `In this selection, ${who} burned` : `In the ${rangeLabel}, ${who} burned`;
   const noData = s && s.totals.requests === 0 && !filtered;
 
   const tickerItems = s
@@ -256,7 +257,7 @@ export function App() {
             Token<em>Burn</em>
           </span>
         </a>
-        <span className="meta">local · read-only · nothing leaves this machine</span>
+        <span className="meta">{DEMO ? "demo · fictional usage · run npx tokenburn for yours" : "local · read-only · nothing leaves this machine"}</span>
         <span className="spacer" />
         <span className={"status " + (burning ? "burning" : live.connected ? "idle" : "")} data-reveal="fade" data-reveal-delay="1800">
           <span className="dot" />
@@ -305,6 +306,7 @@ export function App() {
             <div className="wrap hero-inner">
               <div className="hero-eyebrow" data-reveal>
                 <span className="serif">{since}</span>
+                {DEMO && <span className="mono">demo data</span>}
               </div>
               <div className="counter-wrap" data-reveal data-reveal-delay="350">
                 <div className={"counter" + (kick ? " kick" : "")} data-landing={landing || undefined}>
@@ -484,6 +486,7 @@ export function App() {
           <div className="cols">
             <div>
               <b>Privacy</b>
+              {DEMO && "This preview runs on made-up usage generated in your browser. The real thing, npx tokenburn, runs on your machine. "}
               Reads your Claude Code logs only. Never writes to them, never reads prompt or response text. The server binds to 127.0.0.1 and sends nothing anywhere.
             </div>
             <div>
@@ -493,7 +496,7 @@ export function App() {
             <div>
               <b>TokenBurn v{meta?.version ?? "…"}</b>
               Open source, MIT. Not affiliated with Anthropic.
-              <span className="mono-line">{meta?.files ?? 0} log files · read-only</span>
+              <span className="mono-line">{DEMO ? "demo data · no logs read" : `${meta?.files ?? 0} log files · read-only`}</span>
             </div>
           </div>
         </div>

@@ -3,11 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { URL } from "node:url";
 import type { UsageStore } from "./store.js";
-import { buildSummary, byModel, byProject, tokenTotals, type Filters } from "./aggregate.js";
+import { buildSummary, byModel, byProject, type Filters } from "./aggregate.js";
 import { footprintOf, footprintSources, waterLadder, energyLadder } from "./footprint.js";
-import { loadConfig, mergeConfig, saveConfig, type UserConfig } from "./config.js";
+import { loadConfig, mergeConfig, saveConfig } from "./config.js";
 import { pricing, modelLabel } from "./cost.js";
-import { costOf } from "./cost.js";
+import { liveSnapshot } from "./live.js";
 import type { UsageEvent } from "./types.js";
 
 export interface ServerOptions {
@@ -41,25 +41,6 @@ function parseFilters(u: URL): Filters {
   return f;
 }
 
-export function liveSnapshot(store: UsageStore, config: UserConfig, now = Date.now()) {
-  const all = store.events;
-  const t = tokenTotals(all);
-  const c = costOf(all);
-  // events are sorted by ts, so walk back from the end for the last hour
-  const hourAgo = now - 3_600_000;
-  let i = all.length;
-  while (i > 0 && all[i - 1].ts >= hourAgo) i--;
-  const recent = all.slice(i);
-  const lt = tokenTotals(recent);
-  const lc = costOf(recent);
-  return {
-    totals: { ...t, usd: c.usd, unknownTokens: c.unknownTokens, requests: all.length },
-    footprint: footprintOf(t, config.footprint),
-    lastHour: { total: lt.total, output: lt.output, usd: lc.usd, requests: recent.length },
-    lastEventTs: all.length ? all[all.length - 1].ts : null,
-  };
-}
-
 export function createApp(opts: ServerOptions) {
   const { store, webDir } = opts;
   let config = loadConfig();
@@ -86,7 +67,7 @@ export function createApp(opts: ServerOptions) {
 
   const broadcast = (added: UsageEvent[]) => {
     if (!clients.size || !added.length) return;
-    const snap = liveSnapshot(store, config);
+    const snap = liveSnapshot(store.events, config.footprint);
     const payload = `event: usage\ndata: ${JSON.stringify({ added: added.length, ...snap, at: Date.now() })}\n\n`;
     for (const res of clients) res.write(payload);
   };
@@ -104,7 +85,7 @@ export function createApp(opts: ServerOptions) {
       const f = parseFilters(u);
       const s = buildSummary(store.events, f);
       const fp = footprintOf(s.totals, config.footprint);
-      const live = liveSnapshot(store, config);
+      const live = liveSnapshot(store.events, config.footprint);
       return json(res, 200, { summary: s, footprint: fp, allTime: live, meta: meta() });
     }
     if (p === "/api/meta") return json(res, 200, meta());
@@ -134,7 +115,7 @@ export function createApp(opts: ServerOptions) {
         connection: "keep-alive",
         "x-accel-buffering": "no",
       });
-      res.write(`event: hello\ndata: ${JSON.stringify(liveSnapshot(store, config))}\n\n`);
+      res.write(`event: hello\ndata: ${JSON.stringify(liveSnapshot(store.events, config.footprint))}\n\n`);
       clients.add(res);
       req.on("close", () => clients.delete(res));
       return;
@@ -162,7 +143,7 @@ export function createApp(opts: ServerOptions) {
   });
 
   const broadcastConfig = () => {
-    const snap = liveSnapshot(store, config);
+    const snap = liveSnapshot(store.events, config.footprint);
     const payload = `event: config\ndata: ${JSON.stringify({ config, ...snap })}\n\n`;
     for (const r of clients) r.write(payload);
   };

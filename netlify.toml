@@ -1,0 +1,8 @@
+# Hosted preview: the dashboard with fictional demo data (web/src/demo.ts).
+# The real tool needs the local server, so this deploys only the static web build.
+[build]
+  command = "npm run build:demo"
+  publish = "dist/web"
+
+[build.environment]
+  NODE_VERSION = "22"

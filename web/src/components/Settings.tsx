@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FootprintConfig, Meta } from "../api";
-import { saveConfig } from "../api";
+import { DEMO, saveConfig } from "../api";
 
 const DEFAULTS: FootprintConfig = { whPerMillionOutputTokens: 600, tokenWeights: { input: 0.1, output: 1, cacheWrite: 0.1, cacheRead: 0.01 }, litersPerKWh: 2 };
 
@@ -37,7 +37,7 @@ export function SettingsDrawer({ meta, onClose, onSaved }: { meta: Meta | null; 
         <h2>How the lake is calculated</h2>
         <p>
           There is no official per-token energy or water figure from Anthropic. TokenBurn multiplies your tokens by third-party estimates below. Treat the result as satire with a
-          footnote, not a measurement. Edit the factors if you have better numbers. Saved to <code>~/.tokenburn/config.json</code>.
+          footnote, not a measurement. Edit the factors if you have better numbers. {DEMO ? "In this demo, changes last until you reload." : <>Saved to <code>~/.tokenburn/config.json</code>.</>}
         </p>
         <div className="field">
           <label>Wh per million output tokens</label>
