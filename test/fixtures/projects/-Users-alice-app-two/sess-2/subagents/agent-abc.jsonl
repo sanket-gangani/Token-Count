@@ -1,0 +1,1 @@
+{"type":"assistant","uuid":"c1","sessionId":"sess-2","requestId":"req_20","timestamp":"2026-10-02T12:01:00.000Z","cwd":"/Users/alice/app-two","isSidechain":true,"message":{"id":"msg_20","model":"claude-haiku-5-5","role":"assistant","content":[],"usage":{"input_tokens":150000,"output_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}

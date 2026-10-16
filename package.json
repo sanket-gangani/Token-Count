@@ -1,0 +1,64 @@
+{
+  "name": "tokenburn",
+  "version": "0.1.0",
+  "description": "Watch your Claude Code tokens burn in real time. Local, open source, slightly judgmental.",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json && vite build web",
+    "dev": "vite build web --logLevel warn && tsx src/cli.ts",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json",
+    "dev:web": "vite web",
+    "start": "npm run build && node dist/cli.js"
+  },
+  "keywords": [
+    "claude-code",
+    "tokens",
+    "usage",
+    "dashboard",
+    "cli"
+  ],
+  "author": "Sanket Gangani",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "tokenburn": "./dist/cli.js"
+  },
+  "devDependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanket-gangani/Token-Count.git"
+  },
+  "homepage": "https://github.com/sanket-gangani/Token-Count#readme",
+  "bugs": {
+    "url": "https://github.com/sanket-gangani/Token-Count/issues"
+  }
+}

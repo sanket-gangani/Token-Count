@@ -1,0 +1,24 @@
+{
+  "_comment": "Rough, for-fun estimates. There is no official per-token figure from Anthropic. Edit these in the dashboard settings; overrides live in ~/.tokenburn/config.json.",
+  "whPerMillionOutputTokens": 600,
+  "tokenWeights": { "input": 0.1, "output": 1, "cacheWrite": 0.1, "cacheRead": 0.01 },
+  "litersPerKWh": 2.0,
+  "sources": [
+    {
+      "claim": "~0.3 Wh per typical chat query (assumes roughly 500 output tokens), i.e. ~0.6 mWh per output token -> 600 Wh per million output tokens",
+      "url": "https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use"
+    },
+    {
+      "claim": "Median 0.34 Wh per query for frontier-scale (>200B) models on H100 nodes; long reasoning/agentic responses can be >10x",
+      "url": "https://arxiv.org/abs/2509.20241"
+    },
+    {
+      "claim": "Input/prefill tokens cost far less energy than generated tokens; cache reads less still. The weights here are a deliberate rough ratio, not a measurement.",
+      "url": "https://arxiv.org/abs/2509.20241"
+    },
+    {
+      "claim": "Water: on-site cooling ~0.2-2 L/kWh plus off-site electricity-generation water ~3 L/kWh in the US; 2 L/kWh here is a middle-of-the-road blended figure",
+      "url": "https://arxiv.org/abs/2304.03271"
+    }
+  ]
+}
