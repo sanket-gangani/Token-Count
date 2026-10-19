@@ -1,5 +1,5 @@
 {
-  "name": "tokenburn",
+  "name": "burntokens",
   "version": "0.1.0",
   "description": "Watch your Claude Code tokens burn in real time. Local, open source, slightly judgmental.",
   "scripts": {
@@ -17,12 +17,16 @@
     "tokens",
     "usage",
     "dashboard",
-    "cli"
+    "cli",
+    "tokenburn",
+    "claude",
+    "token-usage"
   ],
   "author": "Sanket Gangani",
   "license": "MIT",
   "type": "module",
   "bin": {
+    "burntokens": "./dist/cli.js",
     "tokenburn": "./dist/cli.js"
   },
   "devDependencies": {

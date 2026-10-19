@@ -257,7 +257,7 @@ export function App() {
             Token<em>Burn</em>
           </span>
         </a>
-        <span className="meta">{DEMO ? "demo · fictional usage · run npx tokenburn for yours" : "local · read-only · nothing leaves this machine"}</span>
+        <span className="meta">{DEMO ? "demo · fictional usage · run npx burntokens for yours" : "local · read-only · nothing leaves this machine"}</span>
         <span className="spacer" />
         <span className={"status " + (burning ? "burning" : live.connected ? "idle" : "")} data-reveal="fade" data-reveal-delay="1800">
           <span className="dot" />
@@ -486,7 +486,7 @@ export function App() {
           <div className="cols">
             <div>
               <b>Privacy</b>
-              {DEMO && "This preview runs on made-up usage generated in your browser. The real thing, npx tokenburn, runs on your machine. "}
+              {DEMO && "This preview runs on made-up usage generated in your browser. The real thing, npx burntokens, runs on your machine. "}
               Reads your Claude Code logs only. Never writes to them, never reads prompt or response text. The server binds to 127.0.0.1 and sends nothing anywhere.
             </div>
             <div>

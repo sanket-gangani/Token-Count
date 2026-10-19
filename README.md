@@ -3,7 +3,7 @@
 **Watch your Claude Code tokens burn in real time. Local, open source, slightly judgmental.**
 
 ```bash
-npx tokenburn
+npx burntokens
 ```
 
 TokenBurn reads the transcript logs Claude Code already writes on your machine and turns them into a live dashboard: a big glowing counter that ticks while you work, history by day / week / month / project / model, what it all *would* have cost at API prices, and a lake that slowly drains as your estimated water footprint grows.
@@ -14,11 +14,11 @@ It runs 100% locally. No accounts, no telemetry, nothing leaves your machine.
 
 ## Install
 
-Requires Node 20+.
+Requires Node 20+. The npm package is called `burntokens` (the name `tokenburn` was too close to an existing package). Once installed, the command is `tokenburn` (`burntokens` works too).
 
 ```bash
-npx tokenburn            # one-off: parse logs, start the dashboard, open the browser
-npm i -g tokenburn       # or install globally for the status line
+npx burntokens           # one-off: parse logs, start the dashboard, open the browser
+npm i -g burntokens      # or install globally; this gives you the `tokenburn` command
 ```
 
 ## Modes
@@ -51,7 +51,7 @@ It prints something like:
 302.6M session · 🔥 331.2M today · $128.73 api-eq · ≈11 water bottles
 ```
 
-Claude Code passes the current `session_id` on stdin, which is how the session figure is found. The command only reads files modified today (plus the current session's file), so it stays fast with gigabytes of history. Use a global install rather than `npx` here so it does not hit the network on every refresh.
+Claude Code passes the current `session_id` on stdin, which is how the session figure is found. The command only reads files modified today (plus the current session's file), so it stays fast with gigabytes of history. Use a global install (`npm i -g burntokens`) rather than `npx` here so it does not hit the network on every refresh.
 
 ## Where the numbers come from
 
