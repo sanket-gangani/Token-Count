@@ -1,11 +1,11 @@
 // Demo mode for the hosted preview (built with VITE_DEMO=1). There is no local server and no log
 // folder, so this generates a fictional usage history and runs it through the same aggregation
 // code the CLI uses. A timer appends new requests so the page behaves as if Claude Code is busy.
-import { buildSummary, byModel, byProject } from "../../src/aggregate";
+import { buildSummary, byModel, byProject, bySource, SOURCE_LABELS } from "../../src/aggregate";
 import { modelLabel, pricing } from "../../src/cost";
 import { defaultFootprint, energyLadder, footprintOf, footprintSources, waterLadder } from "../../src/footprint";
 import { liveSnapshot } from "../../src/live";
-import type { UsageEvent } from "../../src/types";
+import type { Source, UsageEvent } from "../../src/types";
 import { version } from "../../package.json";
 import type { Filters, LiveSnapshot, Meta, SummaryResponse, UserConfig } from "./api";
 
@@ -14,6 +14,9 @@ const PROJECTS: [string, number][] = [
   ["data-pipeline", 8], ["design-system", 7], ["side-quest", 6], ["landing-v3", 5], ["dotfiles", 2],
 ];
 const MODELS: [string, number][] = [["claude-opus-5-5", 52], ["claude-sonnet-5-5", 20], ["claude-opus-5", 12], ["claude-fable-5-1", 11], ["claude-haiku-5-5", 5]];
+const CODEX_MODELS: [string, number][] = [["gpt-5.6-sol", 55], ["gpt-5.6-terra", 30], ["gpt-6.1-sol", 15]];
+/** share of sessions run in Codex instead of Claude Code */
+const CODEX_SHARE = 0.3;
 const HOURS: [number, number][] = [0.2, 0.1, 0.05, 0.03, 0.03, 0.05, 0.2, 0.5, 1.0, 1.6, 2.0, 2.2, 1.6, 1.9, 2.6, 2.9, 3.0, 2.4, 1.5, 1.2, 1.4, 1.3, 0.9, 0.5].map((w, h) => [h, w]);
 const LIVE_PROJECT = "acme-api";
 const LIVE_MODEL = "claude-opus-5-5";
@@ -29,11 +32,30 @@ function seeded(seed: number) {
 }
 
 let n = 0;
-function event(project: string, sessionId: string, ts: number, model: string, rand: () => number, ctx: number): UsageEvent {
+function event(project: string, sessionId: string, ts: number, model: string, rand: () => number, ctx: number, source: Source = "claude"): UsageEvent {
   const between = (a: number, b: number) => a + rand() * (b - a);
+  if (source === "codex") {
+    // Codex logs no cache writes: the uncached part of the prompt is plain input.
+    return {
+      key: `demo-${n++}`,
+      source,
+      ts,
+      model,
+      project: `-Users-dev-${project}`,
+      projectLabel: project,
+      sessionId,
+      isSidechain: false,
+      input: Math.round(between(300, 6000)),
+      output: Math.round(between(80, 2400)),
+      cacheWrite5m: 0,
+      cacheWrite1h: 0,
+      cacheRead: Math.round(ctx),
+    };
+  }
   const write5m = rand() < 0.15 ? Math.round(between(1000, 9000)) : 0;
   return {
     key: `demo-${n++}`,
+    source,
     ts,
     model,
     project: `-Users-dev-${project}`,
@@ -77,12 +99,14 @@ function generate(now: number): UsageEvent[] {
       // today's sessions start in the hours before now so the page looks mid-day busy
       if (isToday) t = new Date(now - (s + 1) * between(35, 70) * 60_000);
       if (t.getTime() > now) continue;
-      const model = pick(MODELS);
+      const source: Source = rand() < CODEX_SHARE ? "codex" : "claude";
+      const model = pick(source === "codex" ? CODEX_MODELS : MODELS);
       const requests = Math.round(between(30, 230) * spike);
       let ctx = between(18_000, 40_000);
       for (let i = 0; i < requests && t.getTime() < now; i++) {
-        ctx = Math.min(ctx + between(800, 6000), between(160_000, 420_000));
-        out.push(event(project, sessionId, t.getTime(), rand() < 0.08 ? "claude-haiku-5-5" : model, rand, ctx));
+        ctx = Math.min(ctx + between(800, 6000), between(160_000, source === "codex" ? 250_000 : 420_000));
+        const m = source === "claude" && rand() < 0.08 ? "claude-haiku-5-5" : model;
+        out.push(event(project, sessionId, t.getTime(), m, rand, ctx, source));
         t = new Date(t.getTime() + between(6, 95) * 1000);
       }
     }
@@ -100,14 +124,16 @@ export function demoSummary(f: Filters): SummaryResponse {
   const meta: Meta = {
     version,
     projectsDir: "~/.claude/projects",
+    codexHome: "~/.codex",
     files: new Set(ev.map((e) => e.sessionId)).size,
     warnings: { malformedLines: 0, skippedSynthetic: 0, duplicates: 0 },
-    pricing: { source: pricing.source, checked: pricing.checked, models: Object.keys(pricing.models) },
+    pricing: { source: pricing.source, checked: pricing.checked, sources: pricing.sources, models: Object.keys(pricing.models) },
     footprintSources,
     waterLadder,
     energyLadder,
     projects: byProject(ev).map((p) => ({ key: p.key, label: p.label, total: p.total })),
     models: byModel(ev).map((m) => ({ key: m.key, label: modelLabel(m.key), total: m.total })),
+    sources: bySource(ev).map((x) => ({ key: x.key, label: SOURCE_LABELS[x.key as Source], total: x.total })),
     config,
   };
   return { summary, footprint: footprintOf(summary.totals, config.footprint), allTime: liveSnapshot(ev, config.footprint), meta };

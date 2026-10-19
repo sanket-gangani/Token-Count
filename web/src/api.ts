@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { Source } from "../../src/types";
+export type { Source };
 
 export interface Totals {
   input: number;
@@ -26,6 +28,7 @@ export interface PeriodCard extends Totals {
 }
 export interface SessionSummary extends Totals {
   sessionId: string;
+  source: Source;
   project: string;
   projectLabel: string;
   model: string;
@@ -49,6 +52,7 @@ export interface Summary {
   months: Bucket[];
   models: Bucket[];
   projects: ProjectBucket[];
+  sources: Bucket[];
   sessions: SessionSummary[];
   first: number | null;
   last: number | null;
@@ -87,14 +91,16 @@ export interface UserConfig {
 export interface Meta {
   version: string;
   projectsDir: string;
+  codexHome: string | null;
   files: number;
   warnings: { malformedLines: number; skippedSynthetic: number; duplicates: number };
-  pricing: { source: string; checked: string; models: string[] };
+  pricing: { source: string; checked: string; sources: { provider: string; source: string; checked: string }[]; models: string[] };
   footprintSources: { claim: string; url: string }[];
   waterLadder: LadderUnit[];
   energyLadder: LadderUnit[];
   projects: { key: string; label: string; total: number }[];
   models: { key: string; label: string; total: number }[];
+  sources: { key: string; label: string; total: number }[];
   config: UserConfig;
 }
 export interface LiveSnapshot {
@@ -115,6 +121,7 @@ export interface Filters {
   to?: number;
   projects: string[];
   models: string[];
+  sources: Source[];
 }
 
 export function filtersToQuery(f: Filters): string {
@@ -123,6 +130,7 @@ export function filtersToQuery(f: Filters): string {
   if (f.to !== undefined) q.set("to", String(f.to));
   if (f.projects.length) q.set("projects", f.projects.join(","));
   if (f.models.length) q.set("models", f.models.join(","));
+  if (f.sources.length) q.set("sources", f.sources.join(","));
   const s = q.toString();
   return s ? "?" + s : "";
 }

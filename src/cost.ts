@@ -1,4 +1,5 @@
-import pricingJson from "./pricing.json" with { type: "json" };
+import anthropicJson from "./pricing.json" with { type: "json" };
+import openaiJson from "./pricing-openai.json" with { type: "json" };
 import type { CostTotals, UsageEvent } from "./types.js";
 import { normalizeModel, modelLabel } from "./models.js";
 export { normalizeModel, modelLabel };
@@ -12,13 +13,33 @@ export interface PriceEntry {
   longContext?: PriceEntry & { thresholdInputTokens: number };
 }
 
-export interface PricingTable {
+export interface PriceSource {
+  provider: string;
   source: string;
   checked: string;
+}
+
+export interface PricingTable {
+  /** Anthropic's page; kept for older consumers of --json */
+  source: string;
+  checked: string;
+  sources: PriceSource[];
   models: Record<string, PriceEntry>;
 }
 
-export const pricing: PricingTable = pricingJson as unknown as PricingTable;
+type PriceFile = { source: string; checked: string; models: Record<string, PriceEntry> };
+const anthropic = anthropicJson as unknown as PriceFile;
+const openai = openaiJson as unknown as PriceFile;
+
+export const pricing: PricingTable = {
+  source: anthropic.source,
+  checked: anthropic.checked,
+  sources: [
+    { provider: "Anthropic", source: anthropic.source, checked: anthropic.checked },
+    { provider: "OpenAI", source: openai.source, checked: openai.checked },
+  ],
+  models: { ...anthropic.models, ...openai.models },
+};
 
 export function priceFor(model: string): PriceEntry | null {
   return pricing.models[normalizeModel(model)] ?? null;

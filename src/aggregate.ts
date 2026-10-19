@@ -1,5 +1,5 @@
 import { costBreakdownOfEvent, costOf, costOfEvent, type KindCost } from "./cost.js";
-import type { Bucket, SessionSummary, TokenTotals, UsageEvent } from "./types.js";
+import type { Bucket, SessionSummary, Source, TokenTotals, UsageEvent } from "./types.js";
 
 export interface Filters {
   /** inclusive epoch ms */
@@ -8,17 +8,21 @@ export interface Filters {
   to?: number;
   projects?: string[];
   models?: string[];
+  /** claude, codex; empty or missing means both */
+  sources?: Source[];
 }
 
 export function filterEvents(events: readonly UsageEvent[], f: Filters = {}): UsageEvent[] {
   const projects = f.projects?.length ? new Set(f.projects) : null;
   const models = f.models?.length ? new Set(f.models) : null;
+  const sources = f.sources?.length ? new Set(f.sources) : null;
   return events.filter(
     (e) =>
       (f.from === undefined || e.ts >= f.from) &&
       (f.to === undefined || e.ts < f.to) &&
       (!projects || projects.has(e.project)) &&
-      (!models || models.has(e.model)),
+      (!models || models.has(e.model)) &&
+      (!sources || sources.has(e.source)),
   );
 }
 
@@ -97,6 +101,10 @@ export const byWeek = (ev: Iterable<UsageEvent>) => groupBy(ev, (e) => weekKey(e
 export const byMonth = (ev: Iterable<UsageEvent>) => groupBy(ev, (e) => monthKey(e.ts));
 export const byModel = (ev: Iterable<UsageEvent>) =>
   groupBy(ev, (e) => e.model).sort((a, b) => b.total - a.total);
+export const bySource = (ev: Iterable<UsageEvent>) =>
+  groupBy(ev, (e) => e.source).sort((a, b) => b.total - a.total);
+
+export const SOURCE_LABELS: Record<Source, string> = { claude: "Claude Code", codex: "Codex" };
 
 export interface ProjectBucket extends Bucket {
   label: string;
@@ -133,6 +141,7 @@ export function sessions(events: Iterable<UsageEvent>): SessionSummary[] {
     if (!s) {
       s = {
         sessionId: e.sessionId,
+        source: e.source,
         project: e.project,
         projectLabel: e.projectLabel,
         model: e.model,
@@ -223,6 +232,8 @@ export interface Summary {
   months: Bucket[];
   models: Bucket[];
   projects: ProjectBucket[];
+  /** tokens and cost per tool (Claude Code, Codex) */
+  sources: Bucket[];
   sessions: SessionSummary[];
   first: number | null;
   last: number | null;
@@ -239,8 +250,8 @@ export function buildSummary(all: readonly UsageEvent[], f: Filters = {}, now = 
     if (first === null || e.ts < first) first = e.ts;
     if (last === null || e.ts > last) last = e.ts;
   }
-  // Period cards respect project/model filters but always use the calendar window.
-  const scoped = filterEvents(all, { projects: f.projects, models: f.models });
+  // Period cards respect project/model/source filters but always use the calendar window.
+  const scoped = filterEvents(all, { projects: f.projects, models: f.models, sources: f.sources });
   return {
     generatedAt: now,
     range: { from: f.from ?? null, to: f.to ?? null },
@@ -257,6 +268,7 @@ export function buildSummary(all: readonly UsageEvent[], f: Filters = {}, now = 
     months: byMonth(events),
     models: byModel(events),
     projects: byProject(events),
+    sources: bySource(events),
     sessions: sess.slice(0, sessionLimit),
     first,
     last,

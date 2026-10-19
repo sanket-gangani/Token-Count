@@ -6,6 +6,7 @@ export function normalizeModel(id: string): string {
   m = m.replace(/-v\d+:\d+$/, "");
   m = m.replace(/@\d{8}$/, "");
   m = m.replace(/-\d{8}$/, "");
+  m = m.replace(/-\d{4}-\d{2}-\d{2}$/, ""); // OpenAI snapshots: gpt-5-2025-08-07
   m = m.replace(/-latest$/, "");
   return m;
 }

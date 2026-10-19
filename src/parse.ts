@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { StringDecoder } from "node:string_decoder";
 import type { ParseWarnings, UsageEvent } from "./types.js";
 import { labelFromProjectKey } from "./discover.js";
 
@@ -86,6 +87,7 @@ export function parseLine(line: string, ctx: ParseContext): UsageEvent | null {
   const cwd = typeof obj.cwd === "string" ? obj.cwd : "";
   return {
     key,
+    source: "claude",
     ts,
     model,
     project: ctx.project,
@@ -108,6 +110,59 @@ export interface IncrementalResult {
   remainder: string;
 }
 
+const CHUNK_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Read a file from `offset` and call `onLine` for each complete line. The
+ * trailing partial line comes back as `remainder` so live writes that land
+ * mid-line are handled. Reads in chunks, so files bigger than the largest
+ * possible JS string (Codex rollouts reach hundreds of MB) are fine.
+ * Returns null when the file cannot be opened.
+ */
+export function forEachNewLine(
+  file: string,
+  offset: number,
+  remainder: string,
+  onLine: (line: string) => void,
+  chunkBytes = CHUNK_BYTES,
+): { offset: number; remainder: string } | null {
+  let fd: number;
+  try {
+    fd = fs.openSync(file, "r");
+  } catch {
+    return null;
+  }
+  try {
+    const size = fs.fstatSync(fd).size;
+    if (size < offset) {
+      // truncated / rewritten: start over
+      offset = 0;
+      remainder = "";
+    }
+    if (size <= offset) return { offset, remainder };
+    const buf = Buffer.alloc(Math.min(chunkBytes, size - offset));
+    const decoder = new StringDecoder("utf8");
+    let carry = remainder;
+    let pos = offset;
+    while (pos < size) {
+      const n = fs.readSync(fd, buf, 0, Math.min(buf.length, size - pos), pos);
+      if (n <= 0) break;
+      pos += n;
+      const text = carry + decoder.write(buf.subarray(0, n));
+      let start = 0;
+      let nl: number;
+      while ((nl = text.indexOf("\n", start)) !== -1) {
+        onLine(text.slice(start, nl));
+        start = nl + 1;
+      }
+      carry = text.slice(start);
+    }
+    return { offset: pos, remainder: carry + decoder.end() };
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 /**
  * Read a file from `offset`, parse complete lines, return new events and the
  * new offset. Partial trailing lines are kept in `remainder` so live writes
@@ -119,39 +174,17 @@ export function parseFileIncremental(
   offset = 0,
   remainder = "",
 ): IncrementalResult {
-  let fd: number;
-  try {
-    fd = fs.openSync(file, "r");
-  } catch {
-    return { events: [], offset, remainder };
-  }
-  try {
-    const size = fs.fstatSync(fd).size;
-    if (size < offset) {
-      // truncated / rewritten: start over
-      offset = 0;
-      remainder = "";
-    }
-    const len = size - offset;
-    if (len <= 0) return { events: [], offset, remainder };
-    const buf = Buffer.alloc(len);
-    fs.readSync(fd, buf, 0, len, offset);
-    const text = remainder + buf.toString("utf8");
-    const lines = text.split("\n");
-    const tail = lines.pop() ?? "";
-    const events: UsageEvent[] = [];
-    for (const line of lines) {
-      // Cheap pre-filter: only assistant lines carry usage. Avoids JSON.parse on
-      // huge tool-result lines. Lines that are not JSON objects still get counted
-      // as malformed below when they slip through.
-      if (line.length && !line.includes('"assistant"') && line.charCodeAt(0) === 123 /* { */) continue;
-      const ev = parseLine(line, ctx);
-      if (ev) events.push(ev);
-    }
-    return { events, offset: size, remainder: tail };
-  } finally {
-    fs.closeSync(fd);
-  }
+  const events: UsageEvent[] = [];
+  const r = forEachNewLine(file, offset, remainder, (line) => {
+    // Cheap pre-filter: only assistant lines carry usage. Avoids JSON.parse on
+    // huge tool-result lines. Lines that are not JSON objects still get counted
+    // as malformed below when they slip through.
+    if (line.length && !line.includes('"assistant"') && line.charCodeAt(0) === 123 /* { */) return;
+    const ev = parseLine(line, ctx);
+    if (ev) events.push(ev);
+  });
+  if (!r) return { events: [], offset, remainder };
+  return { events, offset: r.offset, remainder: r.remainder };
 }
 
 /** Parse a whole file from the beginning. */

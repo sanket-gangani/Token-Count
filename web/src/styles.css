@@ -209,6 +209,23 @@ code { font-family: var(--mono); font-size: 0.9em; }
 .hero-cost .serif { font-size: 1.1em; }
 .hero-kv { display: flex; gap: clamp(20px, 3vw, 48px); flex-wrap: wrap; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
 @media (max-width: 720px) { .hero-kv { display: none; } .hero-row { margin-top: 14px; padding-top: 14px; } }
+
+/* Claude Code vs Codex: one split hairline under the hero */
+.source-split { margin-top: clamp(18px, 2.6vh, 30px); }
+.source-split-bar { display: flex; gap: 3px; height: 2px; }
+.source-split-bar i { display: block; height: 100%; background: var(--ember); box-shadow: 0 0 12px var(--ember-glow); transition: width 1.2s var(--ease); }
+.source-split-bar i.codex { background: var(--ember-hot); }
+.source-split-legend { display: flex; justify-content: space-between; gap: 16px; margin-top: 12px; }
+.source-split-item { display: flex; flex-direction: column; gap: 4px; border: 0; background: transparent; padding: 0; cursor: pointer; text-align: left; font: inherit; color: var(--ink); text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
+.source-split-item.codex { align-items: flex-end; text-align: right; }
+.source-split-item .k { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); transition: color 0.2s; }
+.source-split-item .k i { width: 6px; height: 6px; border-radius: 50%; background: var(--ember); }
+.source-split-item.codex .k i { background: var(--ember-hot); }
+.source-split-item .k em { font-style: normal; color: var(--ink-2); }
+.source-split-item .v { font-family: var(--mono); font-size: clamp(14px, 1.3vw, 17px); letter-spacing: -0.01em; }
+.source-split-item .v .c { color: var(--ink-2); }
+.source-split-item:hover .k { color: var(--ink); }
+@media (max-width: 560px) { .source-split-item .v .c { display: none; } }
 .kv .v { font-family: var(--mono); font-size: clamp(16px, 1.5vw, 20px); font-weight: 500; letter-spacing: -0.01em; }
 .kv .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin-top: 3px; }
 .scroll-cue { position: absolute; right: var(--gutter); top: 50%; z-index: 2; transform: translateY(-50%); writing-mode: vertical-rl; font-family: var(--mono); font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-3); display: none; }
@@ -224,7 +241,7 @@ code { font-family: var(--mono); font-size: 0.9em; }
 
 /* ---------- sections ---------- */
 .section { padding: clamp(56px, 9vh, 120px) 0 0; }
-.section-head { position: relative; display: flex; align-items: baseline; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding-bottom: 22px; margin-bottom: clamp(28px, 4vh, 48px); }
+.section-head { position: relative; z-index: 5; display: flex; align-items: baseline; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding-bottom: 22px; margin-bottom: clamp(28px, 4vh, 48px); }
 .section-head[data-reveal] { transform: none; }
 .section-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--hair-2); transform: scaleX(0); transform-origin: left; transition: transform 1.2s cubic-bezier(0.77, 0, 0.18, 1) 0.25s; }
 .section-head.in::after { transform: scaleX(1); }
@@ -279,6 +296,7 @@ code { font-family: var(--mono); font-size: 0.9em; }
 @media (max-width: 560px) { .pulse { grid-template-columns: 1fr; } .pulse .cell { border-right: 0; margin-right: 0; border-bottom: 1px solid var(--hair); } .pulse .cell:last-child { border-bottom: 0; } }
 .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
 .chip i { width: 5px; height: 5px; border-radius: 50%; background: var(--ember); }
+.chip i.codex { background: var(--ember-hot); }
 
 /* ---------- lake ---------- */
 .lake { position: relative; margin-top: clamp(56px, 9vh, 120px); min-height: clamp(580px, 84vh, 880px); overflow: hidden; isolation: isolate; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }

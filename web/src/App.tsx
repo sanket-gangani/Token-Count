@@ -7,6 +7,7 @@ import { DailyBurn, HourOfDay, MoneySplit, Ranked } from "./components/Charts";
 import { FilterBar, presetRange, type RangePreset } from "./components/Filters";
 import { SettingsDrawer } from "./components/Settings";
 import { Sessions } from "./components/Sessions";
+import { SourceSplit } from "./components/SourceSplit";
 import { useFire } from "./fx/fire";
 import { Marquee, useParallax, useReveal } from "./fx/motion";
 import { fmtTokens, fmtUSD } from "../../src/format";
@@ -157,7 +158,7 @@ function PulseCell({ p, delay }: { p: PeriodCard; delay: number }) {
 export function App() {
   const [theme, setTheme] = useTheme();
   const [preset, setPreset] = useState<RangePreset>("all");
-  const [filters, setFilters] = useState<Filters>({ projects: [], models: [] });
+  const [filters, setFilters] = useState<Filters>({ projects: [], models: [], sources: [] });
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
@@ -192,7 +193,7 @@ export function App() {
     load();
   }, [load]);
 
-  const filtered = preset !== "all" || filters.projects.length > 0 || filters.models.length > 0;
+  const filtered = preset !== "all" || filters.projects.length > 0 || filters.models.length > 0 || filters.sources.length > 0;
   const s = data?.summary;
   const meta = data?.meta ?? null;
   const snap = live.snapshot ?? data?.allTime ?? null;
@@ -291,7 +292,13 @@ export function App() {
           <Flame className="flame" />
           <h3>Nothing burned yet</h3>
           <p>
-            No Claude Code usage found in <code>{meta?.projectsDir}</code>. Use Claude Code and this page lights up live.
+            No Claude Code or Codex usage found in <code>{meta?.projectsDir}</code>
+            {meta?.codexHome && (
+              <>
+                {" "}or <code>{meta.codexHome}</code>
+              </>
+            )}
+            . Use either one and this page lights up live.
           </p>
         </div>
       )}
@@ -346,6 +353,9 @@ export function App() {
                     <div className="k">output tokens</div>
                   </div>
                 </div>
+              </div>
+              <div data-reveal data-reveal-delay="1500">
+                <SourceSplit rows={s.sources} onPick={(k) => setFilters({ ...filters, sources: [k] })} />
               </div>
             </div>
           </section>
@@ -487,15 +497,15 @@ export function App() {
             <div>
               <b>Privacy</b>
               {DEMO && "This preview runs on made-up usage generated in your browser. The real thing, npx burntokens, runs on your machine. "}
-              Reads your Claude Code logs only. Never writes to them, never reads prompt or response text. The server binds to 127.0.0.1 and sends nothing anywhere.
+              Reads your Claude Code and Codex logs only. Never writes to them, never reads prompt or response text. The server binds to 127.0.0.1 and sends nothing anywhere.
             </div>
             <div>
               <b>Numbers</b>
-              Dollar figures are what these tokens would cost at Anthropic's API list prices, checked {meta?.pricing.checked ?? "…"}. On a subscription you paid less. Water and energy use third-party estimates.
+              Dollar figures are what these tokens would cost at Anthropic's and OpenAI's API list prices, checked {meta?.pricing.sources.map((p) => p.checked).join(" and ") ?? "…"}. On a subscription you paid less. Water and energy use third-party estimates.
             </div>
             <div>
               <b>TokenBurn v{meta?.version ?? "…"}</b>
-              Open source, MIT. Not affiliated with Anthropic.
+              Open source, MIT. Not affiliated with Anthropic or OpenAI.
               <span className="mono-line">{DEMO ? "demo data · no logs read" : `${meta?.files ?? 0} log files · read-only`}</span>
             </div>
           </div>

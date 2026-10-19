@@ -3,18 +3,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { URL } from "node:url";
 import type { UsageStore } from "./store.js";
-import { buildSummary, byModel, byProject, type Filters } from "./aggregate.js";
+import { buildSummary, byModel, byProject, bySource, SOURCE_LABELS, type Filters } from "./aggregate.js";
 import { footprintOf, footprintSources, waterLadder, energyLadder } from "./footprint.js";
 import { loadConfig, mergeConfig, saveConfig } from "./config.js";
 import { pricing, modelLabel } from "./cost.js";
 import { liveSnapshot } from "./live.js";
-import type { UsageEvent } from "./types.js";
+import type { Source, UsageEvent } from "./types.js";
 
 export interface ServerOptions {
   store: UsageStore;
   webDir: string;
   port: number;
   version: string;
+  /** shown in the dashboard when no usage is found */
+  codexHome?: string;
 }
 
 const MIME: Record<string, string> = {
@@ -38,6 +40,8 @@ function parseFilters(u: URL): Filters {
   const m = u.searchParams.get("models");
   if (p) f.projects = p.split(",").filter(Boolean);
   if (m) f.models = m.split(",").filter(Boolean);
+  const src = u.searchParams.get("sources");
+  if (src) f.sources = src.split(",").filter((x): x is Source => x === "claude" || x === "codex");
   return f;
 }
 
@@ -54,14 +58,16 @@ export function createApp(opts: ServerOptions) {
   const meta = () => ({
     version: opts.version,
     projectsDir: store.projectsDir,
+    codexHome: opts.codexHome ?? null,
     files: store.fileCount,
     warnings: store.warnings,
-    pricing: { source: pricing.source, checked: pricing.checked, models: Object.keys(pricing.models) },
+    pricing: { source: pricing.source, checked: pricing.checked, sources: pricing.sources, models: Object.keys(pricing.models) },
     footprintSources,
     waterLadder,
     energyLadder,
     projects: byProject(store.events).map((p) => ({ key: p.key, label: p.label, total: p.total })),
     models: byModel(store.events).map((m) => ({ key: m.key, label: modelLabel(m.key), total: m.total })),
+    sources: bySource(store.events).map((x) => ({ key: x.key, label: SOURCE_LABELS[x.key as Source], total: x.total })),
     config,
   });
 

@@ -1,42 +1,60 @@
 import fs from "node:fs";
 import path from "node:path";
 import { listJsonlFiles, projectKeyForFile } from "./discover.js";
-import { newWarnings, parseFileIncremental, parseLine, type ParseContext } from "./parse.js";
+import { newWarnings, parseFileIncremental, parseLine, type IncrementalResult } from "./parse.js";
+import { newCodexState, parseCodexFileIncremental, parseCodexLine, type CodexFileState } from "./codex.js";
 import { configDir } from "./config.js";
-import type { ParseWarnings, UsageEvent } from "./types.js";
+import type { ParseWarnings, Source, UsageEvent } from "./types.js";
 
 interface FileState {
+  source: Source;
   offset: number;
   remainder: string;
   project: string;
   size: number;
   mtimeMs: number;
   events: UsageEvent[];
+  /** Codex only: parser state at `offset`, so tailing can resume mid-file */
+  codex?: CodexFileState;
 }
 
 interface CacheFile {
   version: number;
   projectsDir: string;
+  codexDirs?: string[];
   warnings?: ParseWarnings;
   files: Record<string, FileState>;
 }
 
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
+
+export interface StoreOptions {
+  /** folders holding Codex rollout files (see codexLogDirs); none by default */
+  codexDirs?: string[];
+  env?: NodeJS.ProcessEnv;
+}
 
 /**
  * In-memory event store with global de-dupe and per-file offsets for live
- * tailing. Optionally persists per-file state to ~/.tokenburn/cache.json so
- * large histories load fast on the next start (only changed files are re-read).
+ * tailing. Holds Claude Code transcripts from `projectsDir` and, when given,
+ * Codex rollouts from `codexDirs`. Optionally persists per-file state to
+ * ~/.tokenburn/cache.json so large histories load fast on the next start
+ * (only changed files are re-read).
  */
 export class UsageStore {
   readonly warnings: ParseWarnings = newWarnings();
+  readonly codexDirs: string[];
+  private readonly env: NodeJS.ProcessEnv;
   private readonly seen = new Set<string>();
   private readonly files = new Map<string, FileState>();
   private flat: UsageEvent[] | null = null;
   private cacheTimer: NodeJS.Timeout | null = null;
   private cacheEnabled = false;
 
-  constructor(readonly projectsDir: string, private readonly env: NodeJS.ProcessEnv = process.env) {}
+  constructor(readonly projectsDir: string, opts: StoreOptions = {}) {
+    this.codexDirs = opts.codexDirs ?? [];
+    this.env = opts.env ?? process.env;
+  }
 
   /** All events, sorted by timestamp. Memoized until the next change. */
   get events(): readonly UsageEvent[] {
@@ -53,23 +71,35 @@ export class UsageStore {
     return this.files.size;
   }
 
-  private ctxFor(project: string): ParseContext {
-    return { project, seen: this.seen, warnings: this.warnings };
+  /** Files read per source. */
+  fileCounts(): Record<Source, number> {
+    const n: Record<Source, number> = { claude: 0, codex: 0 };
+    for (const s of this.files.values()) n[s.source]++;
+    return n;
+  }
+
+  /** Which source a log file belongs to, from where it lives. */
+  sourceOf(file: string): Source {
+    return this.codexDirs.some((d) => file === d || file.startsWith(d + path.sep)) ? "codex" : "claude";
   }
 
   private cachePath(): string {
     return path.join(configDir(this.env), "cache.json");
   }
 
+  private listFiles(): string[] {
+    return [...listJsonlFiles(this.projectsDir), ...this.codexDirs.flatMap((d) => listJsonlFiles(d))];
+  }
+
   /** Full scan of every .jsonl file. Returns count of files read. */
   loadAll(opts: { cache?: boolean } = {}): number {
     this.cacheEnabled = !!opts.cache;
-    const files = listJsonlFiles(this.projectsDir);
+    const files = this.listFiles();
     let cached: CacheFile | null = null;
     if (this.cacheEnabled) {
       try {
         const raw = JSON.parse(fs.readFileSync(this.cachePath(), "utf8")) as CacheFile;
-        if (raw.version === CACHE_VERSION && raw.projectsDir === this.projectsDir && raw.files) cached = raw;
+        if (raw.version === CACHE_VERSION && raw.projectsDir === this.projectsDir && sameDirs(raw.codexDirs, this.codexDirs) && raw.files) cached = raw;
       } catch {
         cached = null;
       }
@@ -98,20 +128,34 @@ export class UsageStore {
   }
 
   /** Load or re-tail a single file. Returns the newly added events. */
-  loadFile(file: string): UsageEvent[] {
-    const project = projectKeyForFile(this.projectsDir, file);
+  loadFile(file: string, source: Source = this.files.get(file)?.source ?? this.sourceOf(file)): UsageEvent[] {
+    const project = source === "codex" ? "codex" : projectKeyForFile(this.projectsDir, file);
     let state = this.files.get(file);
     if (!state) {
-      state = { offset: 0, remainder: "", project, size: 0, mtimeMs: 0, events: [] };
+      state = { source, offset: 0, remainder: "", project, size: 0, mtimeMs: 0, events: [] };
       this.files.set(file, state);
     }
-    const ctx = this.ctxFor(project);
-    const r = parseFileIncremental(file, ctx, state.offset, state.remainder);
-    if (r.offset < state.offset) {
-      // file was truncated and re-read from 0: drop its old events
+    let size: number;
+    try {
+      size = fs.statSync(file).size;
+    } catch {
+      return [];
+    }
+    if (size < state.offset) {
+      // truncated / rewritten: drop its old events and read it again from 0
       for (const e of state.events) this.seen.delete(e.key);
       state.events = [];
+      state.offset = 0;
+      state.remainder = "";
+      state.codex = undefined;
+      this.flat = null;
     }
+    if (source === "codex") state.codex ??= newCodexState(file);
+    const codexCtx = state.codex ? { state: state.codex, seen: this.seen, warnings: this.warnings } : null;
+    const claudeCtx = { project, seen: this.seen, warnings: this.warnings };
+    const r: IncrementalResult = codexCtx
+      ? parseCodexFileIncremental(file, codexCtx, state.offset, state.remainder)
+      : parseFileIncremental(file, claudeCtx, state.offset, state.remainder);
     state.offset = r.offset;
     state.remainder = r.remainder;
     const added = r.events;
@@ -127,7 +171,7 @@ export class UsageStore {
         /* still being written */
       }
       if (complete) {
-        const ev = parseLine(tail, ctx);
+        const ev = codexCtx ? parseCodexLine(tail, codexCtx) : parseLine(tail, claudeCtx);
         if (ev) added.push(ev);
         state.remainder = "";
       }
@@ -151,7 +195,7 @@ export class UsageStore {
     try {
       const dir = configDir(this.env);
       fs.mkdirSync(dir, { recursive: true });
-      const body: CacheFile = { version: CACHE_VERSION, projectsDir: this.projectsDir, warnings: this.warnings, files: Object.fromEntries(this.files) };
+      const body: CacheFile = { version: CACHE_VERSION, projectsDir: this.projectsDir, codexDirs: this.codexDirs, warnings: this.warnings, files: Object.fromEntries(this.files) };
       const tmp = this.cachePath() + ".tmp";
       fs.writeFileSync(tmp, JSON.stringify(body));
       fs.renameSync(tmp, this.cachePath());
@@ -170,4 +214,9 @@ export class UsageStore {
     }, delayMs);
     this.cacheTimer.unref();
   }
+}
+
+function sameDirs(a: string[] | undefined, b: string[]): boolean {
+  const x = a ?? [];
+  return x.length === b.length && x.every((d, i) => d === b[i]);
 }

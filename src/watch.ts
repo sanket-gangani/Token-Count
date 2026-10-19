@@ -5,10 +5,11 @@ export interface Watcher {
 }
 
 /**
- * Watch the projects directory for new/changed .jsonl files. Calls `onChange`
- * per file, debounced so a burst of appends becomes one re-tail.
+ * Watch log folders (Claude's projects dir, Codex's sessions dirs) for
+ * new/changed .jsonl files. Calls `onChange` per file, debounced so a burst of
+ * appends becomes one re-tail.
  */
-export function watchProjects(projectsDir: string, onChange: (file: string) => void, debounceMs = 150): Watcher {
+export function watchProjects(dirs: string | string[], onChange: (file: string) => void, debounceMs = 150): Watcher {
   const timers = new Map<string, NodeJS.Timeout>();
   const schedule = (file: string) => {
     if (!file.endsWith(".jsonl")) return;
@@ -22,7 +23,7 @@ export function watchProjects(projectsDir: string, onChange: (file: string) => v
       }, debounceMs),
     );
   };
-  const w: FSWatcher = chokidar.watch(projectsDir, {
+  const w: FSWatcher = chokidar.watch(dirs, {
     ignoreInitial: true,
     persistent: true,
     ignored: (p, stats) => !!stats && stats.isFile() && !p.endsWith(".jsonl"),

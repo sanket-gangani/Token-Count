@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Filters, Meta } from "../api";
+import type { Filters, Meta, Source } from "../api";
 import { fmtTokens } from "../../../src/format";
 
 export type RangePreset = "7d" | "30d" | "90d" | "all" | "custom";
@@ -60,7 +60,9 @@ export function presetRange(p: RangePreset, now = Date.now()): { from?: number; 
 const toInput = (ts?: number) => (ts ? new Date(ts).toISOString().slice(0, 10) : "");
 
 export function FilterBar({ meta, filters, preset, onPreset, onChange }: { meta: Meta | null; filters: Filters; preset: RangePreset; onPreset: (p: RangePreset) => void; onChange: (f: Filters) => void }) {
-  const active = filters.projects.length + filters.models.length > 0 || preset !== "all";
+  const active = filters.projects.length + filters.models.length + filters.sources.length > 0 || preset !== "all";
+  // Only worth a control once both Claude Code and Codex have usage.
+  const sources = meta?.sources ?? [];
   return (
     <div className="filters">
       <div className="seg">
@@ -83,12 +85,13 @@ export function FilterBar({ meta, filters, preset, onPreset, onChange }: { meta:
       )}
       <MultiSelect label="Projects" options={meta?.projects ?? []} value={filters.projects} onChange={(v) => onChange({ ...filters, projects: v })} />
       <MultiSelect label="Models" options={meta?.models ?? []} value={filters.models} onChange={(v) => onChange({ ...filters, models: v })} />
+      {sources.length > 1 && <MultiSelect label="Sources" options={sources} value={filters.sources} onChange={(v) => onChange({ ...filters, sources: v as Source[] })} />}
       {active && (
         <button
           className="reset"
           onClick={() => {
             onPreset("all");
-            onChange({ projects: [], models: [] });
+            onChange({ projects: [], models: [], sources: [] });
           }}
         >
           Reset

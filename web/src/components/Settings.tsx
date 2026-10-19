@@ -85,14 +85,26 @@ export function SettingsDrawer({ meta, onClose, onSaved }: { meta: Meta | null; 
         <h3>Pricing</h3>
         <p>
           Prices from{" "}
-          <a href={meta?.pricing.source} target="_blank" rel="noreferrer">
-            Anthropic's pricing page
-          </a>
-          , checked {meta?.pricing.checked}. Costs are API-equivalent: what pay-as-you-go would charge. Pro/Max subscribers are not billed per token.
+          {(meta?.pricing.sources ?? []).map((p, i) => (
+            <span key={p.provider}>
+              {i > 0 && " and "}
+              <a href={p.source} target="_blank" rel="noreferrer">
+                {p.provider}'s pricing page
+              </a>{" "}
+              (checked {p.checked})
+            </span>
+          ))}
+          . Costs are API-equivalent: what pay-as-you-go would charge. Subscribers (Claude Pro/Max, ChatGPT plans) are not billed per token.
         </p>
         <h3>Privacy</h3>
         <p>
-          Reads <code>{meta?.projectsDir}</code> only. Never writes to it, never reads prompt or response text, never sends anything over the network. The server is bound to 127.0.0.1.
+          Reads <code>{meta?.projectsDir}</code>
+          {meta?.codexHome && (
+            <>
+              {" "}and <code>{meta.codexHome}</code>
+            </>
+          )}{" "}
+          only. Never writes to them, never reads prompt or response text, never sends anything over the network. The server is bound to 127.0.0.1.
         </p>
       </aside>
     </>

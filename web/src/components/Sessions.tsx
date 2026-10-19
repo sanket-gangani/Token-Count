@@ -39,8 +39,8 @@ export function Sessions({ rows, freshSince }: { rows: SessionSummary[]; freshSi
                 {s.projectLabel}
               </td>
               <td>
-                <span className="chip">
-                  <i />
+                <span className="chip" title={`${s.source === "codex" ? "Codex" : "Claude Code"} · ${s.model}`}>
+                  <i className={s.source} />
                   {modelLabel(s.model)}
                   {s.models.length > 1 && <span style={{ color: "var(--ink-3)" }}>+{s.models.length - 1}</span>}
                 </span>

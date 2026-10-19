@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
-import { newWarnings, parseFile, parseFileIncremental, parseLine } from "../src/parse.js";
+import { forEachNewLine, newWarnings, parseFile, parseFileIncremental, parseLine } from "../src/parse.js";
 import { UsageStore } from "../src/store.js";
 import { listJsonlFiles, projectKeyForFile, resolveProjectsDir } from "../src/discover.js";
 
@@ -76,6 +76,23 @@ describe("parseFile", () => {
     expect(r.events).toHaveLength(1);
     expect(r.events[0].key).toBe("b:b");
     expect(r.remainder).toBe("");
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+});
+
+describe("forEachNewLine", () => {
+  it("splits lines and multi-byte characters across read chunks", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tb-"));
+    const f = path.join(tmp, "chunks.jsonl");
+    const lines = ['{"a":"héllo wörld 🔥"}', '{"b":"' + "x".repeat(50) + '"}', '{"c":"日本語"}'];
+    fs.writeFileSync(f, lines.join("\n") + "\n" + '{"partial":');
+    for (const chunk of [1, 2, 3, 5, 7, 64, 1 << 20]) {
+      const got: string[] = [];
+      const r = forEachNewLine(f, 0, "", (l) => got.push(l), chunk)!;
+      expect(got).toEqual(lines);
+      expect(r.remainder).toBe('{"partial":');
+      expect(r.offset).toBe(fs.statSync(f).size);
+    }
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 });

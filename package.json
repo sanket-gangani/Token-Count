@@ -1,7 +1,7 @@
 {
   "name": "burntokens",
-  "version": "0.1.0",
-  "description": "Watch your Claude Code tokens burn in real time. Local, open source, slightly judgmental.",
+  "version": "0.2.0",
+  "description": "Watch your Claude Code and Codex tokens burn in real time. Local, open source, slightly judgmental.",
   "scripts": {
     "test": "vitest run",
     "build": "tsc -p tsconfig.json && vite build web",
@@ -20,6 +20,8 @@
     "cli",
     "tokenburn",
     "claude",
+    "codex",
+    "openai",
     "token-usage"
   ],
   "author": "Sanket Gangani",

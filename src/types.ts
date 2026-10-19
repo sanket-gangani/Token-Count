@@ -1,11 +1,15 @@
+/** Which coding agent wrote the log. */
+export type Source = "claude" | "codex";
+
 /** One de-duplicated API response with its token usage. Never holds message content. */
 export interface UsageEvent {
-  /** `${messageId}:${requestId}` */
+  /** Claude: `${messageId}:${requestId}`. Codex: `codex:...` (see src/codex.ts) */
   key: string;
+  source: Source;
   /** epoch milliseconds */
   ts: number;
   model: string;
-  /** stable project key: folder name under projects/ */
+  /** stable project key: Claude's folder name under projects/ (cwd with non-alphanumerics as "-") */
   project: string;
   /** human label: basename(cwd) when known */
   projectLabel: string;
@@ -51,6 +55,7 @@ export interface Bucket extends TokenTotals {
 
 export interface SessionSummary extends TokenTotals {
   sessionId: string;
+  source: Source;
   project: string;
   projectLabel: string;
   model: string;
