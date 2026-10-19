@@ -100,5 +100,10 @@ describe("UsageStore + discover", () => {
     expect(resolveProjectsDir({ dir: path.dirname(fixtures) })).toBe(fixtures);
     expect(resolveProjectsDir({ env: { CLAUDE_CONFIG_DIR: path.dirname(fixtures) }, homedir: "/nope" })).toBe(fixtures);
     expect(resolveProjectsDir({ env: {}, homedir: "/nope" })).toBe(path.join("/nope", ".claude", "projects"));
+    // --dir pointing straight at a folder of project folders with any name
+    const copy = fs.mkdtempSync(path.join(os.tmpdir(), "tb-logs-"));
+    fs.mkdirSync(path.join(copy, "-Users-a-app"));
+    expect(resolveProjectsDir({ dir: copy })).toBe(copy);
+    fs.rmSync(copy, { recursive: true, force: true });
   });
 });

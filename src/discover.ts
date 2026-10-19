@@ -21,9 +21,12 @@ export function resolveProjectsDir(opts: DiscoverOptions = {}): string {
   } else {
     base = path.join(home, ".claude");
   }
-  // Accept either ~/.claude or ~/.claude/projects.
+  // Accept ~/.claude, ~/.claude/projects, or (for --dir) any folder that directly
+  // holds the per-project log folders, whatever it is called.
   if (path.basename(base) === "projects") return base;
-  return path.join(base, "projects");
+  const candidate = path.join(base, "projects");
+  if (opts.dir && !fs.existsSync(candidate) && fs.existsSync(base)) return base;
+  return candidate;
 }
 
 /** Recursively list every .jsonl file under the projects dir. */

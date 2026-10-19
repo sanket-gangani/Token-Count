@@ -106,12 +106,18 @@ void main() {
   float flame = n * (1.1 + drive * 0.5) * grad * base - edge * 0.25;
   flame = clamp(flame, 0.0, 1.0);
 
-  vec3 deep = vec3(0.30, 0.02, 0.0);
-  vec3 ember = vec3(1.0, 0.33, 0.06);
-  vec3 tip = vec3(1.0, 0.92, 0.62);
-  vec3 col = mix(deep, ember, smoothstep(0.22, 0.62, flame));
-  col = mix(col, tip, smoothstep(0.70, 0.98, flame));
-  col *= u_tint * (0.85 + drive * 0.35);
+  // Warm ramp: dark red -> ember -> orange -> gold. No pale tips: a pale
+  // yellow dimmed by the page vignette reads as grey smoke, not flame.
+  vec3 deep = vec3(0.36, 0.03, 0.0);
+  vec3 ember = vec3(1.0, 0.30, 0.04);
+  vec3 hot = vec3(1.0, 0.56, 0.10);
+  vec3 tip = vec3(1.0, 0.80, 0.36);
+  vec3 col = mix(deep, ember, smoothstep(0.22, 0.55, flame));
+  col = mix(col, hot, smoothstep(0.55, 0.80, flame));
+  col = mix(col, tip, smoothstep(0.86, 1.0, flame));
+  // Surges brighten the flame but are capped at gold: letting green clip
+  // alongside red turns the hottest cores lime.
+  col = min(col * u_tint * (1.0 + drive * 0.25), vec3(1.0, 0.8, 0.46));
 
   float alpha = smoothstep(0.18, 0.74, flame);
   alpha *= 1.0 - smoothstep(0.75, 1.0, edge);
