@@ -1,7 +1,7 @@
 {
   "_comment": "USD per million tokens, Standard tier, from OpenAI's official pricing page. Columns on the page: Input, Cached input, Cache writes, Output; cacheRead = Cached input, cacheWrite5m/1h = Cache writes. Where the page shows '-' for cache writes the model has none, so such tokens are priced as plain input. longContext applies above 272K input tokens ('Long context: >272K input tokens'). The page notes GPT-5.6 Sol's promotional pricing runs at least through November 21, 2026. Models not listed here show cost as 'unknown'.",
   "source": "https://developers.openai.com/api/docs/pricing",
-  "checked": "2026-10-19",
+  "checked": "2026-10-22",
   "models": {
     "gpt-6-astra":   { "input": 10,   "output": 50,   "cacheWrite5m": 12.5,  "cacheWrite1h": 12.5,  "cacheRead": 1,
       "longContext": { "thresholdInputTokens": 272000, "input": 20,   "output": 75,   "cacheWrite5m": 25,    "cacheWrite1h": 25,    "cacheRead": 2 } },
